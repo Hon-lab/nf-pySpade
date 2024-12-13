@@ -1,5 +1,6 @@
 # nf-pySpade
 The nextflow pipeline for pySpade. 
+Details about pySpade: https://github.com/Hon-lab/pySpade/tree/main
 
 ## Introduction 
 To run the pySpade pipeline, please prepare the folloing input files:
