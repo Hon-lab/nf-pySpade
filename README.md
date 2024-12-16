@@ -3,7 +3,7 @@ The Nextflow pipeline for pySpade.
 Details about pySpade: https://github.com/Hon-lab/pySpade/tree/main
 
 ## Introduction 
-![Over-view](./Workflow.tif "Overview")
+![Over-view](./Workflow.png "Overview")
 
 To run the pySpade pipeline, please prepare the folloing input files:
 1. Mapped transcriptome matrix: provide the Cell Ranger path that contains "filtered_feature_bc_matrix.h5".
