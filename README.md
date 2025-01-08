@@ -1,6 +1,6 @@
 # nf-pySpade
 The Nextflow pipeline for pySpade. 
-Details about pySpade: https://github.com/Hon-lab/pySpade/tree/main
+Details about pySpade: https://github.com/Hon-lab/pySpade
 
 ## Introduction 
 ![Over-view](./Workflow.png "Overview")
