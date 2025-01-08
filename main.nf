@@ -35,7 +35,7 @@ params.expression_cutoff = 0.05
 * Test function
 */
 //If there are too many perturbation regions (sgrna_dict), the regions can be processed in parallel.
-params.size = 50 
+//params.size = 50 
 
 /*
 * pySpade functions
@@ -54,10 +54,6 @@ process pySpadeprocess {
 
 	output:
 		val 'process_ready'
-		//path "$outdir/Singlet_sub_df.h5", emit: sub_df_h5
-		//path "$outdir/Singlet_sgRNA_df.h5", emit: sgrna_df_h5
-		//path "$outdir/Perc_cell_expr.npy"
-		//path "$outdir/Trans_genome_seq.npy"
 
 	script:
 		"""
@@ -103,7 +99,6 @@ process randomized_sgrnadf {
 		path outdir
 
 	output:
-		//path "$outdir/FDR/Randomized_sgrna_df.h5"
 		val 'randomized_sgrna_df_ready'
 
 	script: 
@@ -127,7 +122,6 @@ process pySpadeDEobs {
 	
 	output:
 		val 'DEobs_ready'
-	//	path "$outdir/DEobs/"
 
 	script:
 		"""
@@ -154,7 +148,6 @@ process pySpadeDEobsFDR {
 	
 	output:
 		val 'FDR_DEobs_ready'
-	//	path "$outdir/FDR/DEobs/"
 
 	script:
 		"""
