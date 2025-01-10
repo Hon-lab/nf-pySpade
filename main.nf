@@ -206,7 +206,6 @@ process pySpadeDErand{
 				-t $outdir/Singlet_sub_df.h5\
 				-s $outdir/Singlet_sgRNA_df.h5\
 				-d $sgrna_dict\
-				-i 100\
 				-n 'cpm'\
 				-a 'equal'\
 				-o $outdir/DErand/\
