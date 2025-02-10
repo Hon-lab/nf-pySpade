@@ -81,16 +81,17 @@ def main():
     #read file 
     global_df = pd.read_csv(GLOBAL_DF)
 
-    cutoff_list = list(-np.arange(1, 25, 0.5))
+    cutoff_list = list(-np.arange(1, 50, 0.5))
     num_hits = []
     for Significance_score_cutoff in cutoff_list:
         express_df = global_df[global_df['gene_names'].isin(gene_seq[express_idx])\
                             &((global_df['fc_by_rand_dist_cpm'] > (1+fold_change_cutoff)) | (global_df['fc_by_rand_dist_cpm'] < (1-fold_change_cutoff)))\
                             &(global_df['Significance_score'] < Significance_score_cutoff)\
-                            &(global_df['pval-empirical'] < empirical_pval_cutoff)
+                            &(global_df['pval-empirical'] < empirical_pval_cutoff)\
                             &(global_df['log(pval)-hypergeom'] < hypergeom_pval_cutoff)]
-    num, _ = express_df.shape
-    num_hits.append(num)
+        num, _ = express_df.shape
+        num_hits.append(num)
+
 
     #false positive
     fp_global = pd.read_csv(FP_GLOBAL)
@@ -99,7 +100,7 @@ def main():
         express_df = fp_global[fp_global['gene_names'].isin(gene_seq[express_idx])\
                             &((fp_global['fc_by_rand_dist_cpm'] > (1+fold_change_cutoff)) | (fp_global['fc_by_rand_dist_cpm'] < (1-fold_change_cutoff)))\
                             &(fp_global['Significance_score'] < Significance_score_cutoff)\
-                            &(fp_global['pval-empirical'] < empirical_pval_cutoff)
+                            &(fp_global['pval-empirical'] < empirical_pval_cutoff)\
                             &(fp_global['log(pval)-hypergeom'] < hypergeom_pval_cutoff)]
         num, _ = express_df.shape
         num_false_hits.append(num)
@@ -114,18 +115,22 @@ def main():
     ax.grid(ls='--', color='#D8D8D8')
     ax.set_xlabel('-Significance score cutoff', fontsize=18)
     ax.set_ylabel('FDR', fontsize=18)
-    ax.set_xticks(np.arange(0, 25, 1))
+    ax.set_xticks(np.arange(0, 50, 1))
+    ax.set_xticklabels(np.arange(0,50,1), rotation=-45)
     ax.set_yticks(np.arange(0, 1, 0.05))
-    ax = plt.plot(np.array(np.arange(1, 25, 0.5)),
+    ax = plt.plot(np.array(np.arange(1, 50, 0.5)),
                 FDR, 
                 color='#348ABD', marker='o', markersize=6)
     plt.savefig(OUTDIR + '/FDR.pdf')
 
     #get the cutoff 
-    Significance_cutoff = cutoff_list[np.argwhere(FDR < FDR_CUTOFF)[0][0]]
-    output_file = open(OUTDIR + '/Significance_score_cutoff_FDR.txt', 'w')
-    output_file.write(str(Significance_cutoff) + '\n')
-    output_file.close()
+    if np.sum(FDR < FDR_CUTOFF) == 0: 
+        print("No Significance score cutoff meets the FDR threshold. Please refer to FDR.pdf file to view the FDR curve.", file=sys.stderr, flush=True)
+    else:
+        Significance_cutoff = cutoff_list[np.argwhere(FDR < FDR_CUTOFF)[0][0]]
+        output_file = open(OUTDIR + '/Significance_score_cutoff_FDR.txt', 'w')
+        output_file.write(str(Significance_cutoff) + '\n')
+        output_file.close()
 
 if __name__ == '__main__':
     main()
