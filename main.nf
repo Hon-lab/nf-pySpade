@@ -1,28 +1,40 @@
 #!/usr/bin/env nextflow
 
 /*
+* This repository is the implementation of nextflow pipeline for pySpade. 
+* pySpade is a python package for differential expressed analysis in Perturb-seq (Single cell CRISPR screen) dataset. 
+*
 * Set the pipeline parameters. Please prepare the following input files:
 * transcriptome file from CellRanger output
 * sgRNA matrix (boolean), columns are cell ID, rows are sgRNA.
 * sgRNA annotation dictionary, indicating what sgRNAs target what region.
 * positive control text file to test repression, region and target gene separated by tab.
 * Input files details please look at: https://github.com/Hon-lab/pySpade 
+* How pySpade works: https://link.springer.com/article/10.1186/s13059-025-03474-0 
+*
 * 
 * Author: Yihan Wang
-* Update: 2025/2/5
+* Update: 2025/2/10
 * 
 */
 
-//Change this part for different analysis 
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Specify input files
+* Change this part for your own dataset.  
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
 params.transcriptome = "/project/GCRB/Hon_lab/s215194/Single_Cell/mini_cm_pilot_02_inducible/_421-424_inducible/_aggr_transcriptome/cm_pilot_mini_02_no_normalization_inducible/outs/count/"
 params.sgrna_df = "/project/GCRB/Hon_lab/s215194/Single_Cell/mini_cm_pilot_02_inducible/_421-424_inducible/aggr_dataframe/aggr_combined_df_full.pkl"
 params.sgrna_dict = "/project/GCRB/Hon_lab/s426305/Analysis/IGVF/20240605_WTC11_CMPilot2_PB9/pySpade/sgRNA_dict_hg38.txt"
-//params.sgrna_dict = "/project/GCRB/Hon_lab/s426305/nextflow_test/subset_sgRNA_dict_hg38.txt"
-//params.fc_query = "/project/GCRB/Hon_lab/s426305/Analysis/IGVF/20240605_H9_CMPilot2_inducible/pySpade/promoter_region2.txt"
 params.fc_query = '/project/GCRB/Hon_lab/s426305/nextflow_test/promoter_region.txt'
 
+
 /*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Default parameters, change if needed.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 params.outdir = "./"
 params.FDR = 0.1
@@ -32,11 +44,14 @@ params.fold_change_cutoff = 0.2
 params.expression_cutoff = 0.05
 //expression cutoff = 0.05: genes expressed in more than 5% of cells.
 
-//If there are too many perturbation regions (sgrna_dict), the regions can be processed in parallel.
+//If there are too many perturbation regions (sgrna_dict), the regions can be processed in parallel. In this case, 500 regions are running per node. 
 params.size = 500 
 
+
 /*
-* pySpade functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Functions to run pySpade
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
 process prepDEobs{
@@ -399,8 +414,12 @@ process pySpadeFilterLocal{
 		"""
 }
 
+
 /*
-* main script workflow
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Main script workflow
+* Please view the README file for the pipeline.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
 workflow {
@@ -419,6 +438,7 @@ log.info """\
 	 """
 	 .stripIndent()
 
+
 //Set parameters  
 transcriptome = channel.fromPath(params.transcriptome)
 sgrna_df = channel.fromPath(params.sgrna_df)
@@ -436,27 +456,41 @@ process_ch = pySpadeprocess(transcriptome, sgrna_df, outdir)
 pySpadefc(process_ch, outdir, sgrna_dict, fc_query)
 randomized_ch = randomized_sgrnadf(process_ch, outdir)
 
-//DEobs for real and randomized matrix
+//Prepare the sgRNA_dict file, if there are too many regions, split the file into multiple sub-files and run in multiple nodes in parallel. 
+//The sub-files lines are defined with parameter "size". 
 dict_file_text = prepDEobs(sgrna_dict, size, outdir)
 dict_input = dict_file_text.splitText().map{it -> it.trim() as String}.collect().view()
 
+//DEobs for real and randomized matrix, randomized matrix is for FDR estimation. 
 DEobs_ch = pySpadeDEobs(process_ch, outdir, dict_input)
 FDR_DEobs_ch = pySpadeDEobsFDR(randomized_ch, outdir, dict_input)
 
-//Find the cell number for DErand
+//Used DEobs results to get cell number distribution, and find the cell number for DErand
 bin_text = findDErandRange(DEobs_ch, outdir, sgrna_dict)
 process_input = bin_text.splitText().map{it -> it.trim() as Integer}.collect().view()
 
+//Run DErand, 7 different percentiles for 7 nodes. 
 DErand_ready_channel = pySpadeDErand(process_input, outdir, sgrna_dict)
 
+//Use the results of DEobs and DErand to perform pySpade local and pySpade global. FDR results are only used pySpade global.
 pySpadelocal(DEobs_ch, DErand_ready_channel.collect(), outdir, sgrna_dict)
 Global_ch = pySpadeglobal(DEobs_ch, DErand_ready_channel.collect(), outdir, sgrna_dict)
 FDR_global_ch = pySpadeFDRglobal(FDR_DEobs_ch, DErand_ready_channel.collect(), outdir, sgrna_dict)
 
+//Calculate the Significance score with FDR cutoff. 
+//Expression level, fold change are difined with parameters "expression_cutoff" and "fold_change_cutoff". 
 SS_FDR = calculateFDR(Global_ch, FDR_global_ch, outdir, FDR, fold_change_cutoff, expression_cutoff)
 significance_score = SS_FDR.splitText().map{it -> it.trim() as Double}.collect().view()
 
+//Filter local df and global df with Significance score, expression and fold change cutoff. 
+//Generate Manhattan plots for all the regions. 
 pySpadeManhattan(outdir, expression_cutoff, fold_change_cutoff, significance_score)
 pySpadeFilterLocal(outdir, expression_cutoff, fold_change_cutoff, significance_score)
 
 }
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* THE END
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
