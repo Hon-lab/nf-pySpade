@@ -9,14 +9,15 @@
 * Input files details please look at: https://github.com/Hon-lab/pySpade 
 * 
 * Author: Yihan Wang
+* Update: 2025/2/5
 * 
 */
 
 //Change this part for different analysis 
 params.transcriptome = "/project/GCRB/Hon_lab/s215194/Single_Cell/mini_cm_pilot_02_inducible/_421-424_inducible/_aggr_transcriptome/cm_pilot_mini_02_no_normalization_inducible/outs/count/"
 params.sgrna_df = "/project/GCRB/Hon_lab/s215194/Single_Cell/mini_cm_pilot_02_inducible/_421-424_inducible/aggr_dataframe/aggr_combined_df_full.pkl"
-//params.sgrna_dict = "/project/GCRB/Hon_lab/s426305/Analysis/IGVF/20240605_WTC11_CMPilot2_PB9/pySpade/sgRNA_dict_hg38.txt"
-params.sgrna_dict = "/project/GCRB/Hon_lab/s426305/nextflow_test/subset_sgRNA_dict_hg38.txt"
+params.sgrna_dict = "/project/GCRB/Hon_lab/s426305/Analysis/IGVF/20240605_WTC11_CMPilot2_PB9/pySpade/sgRNA_dict_hg38.txt"
+//params.sgrna_dict = "/project/GCRB/Hon_lab/s426305/nextflow_test/subset_sgRNA_dict_hg38.txt"
 //params.fc_query = "/project/GCRB/Hon_lab/s426305/Analysis/IGVF/20240605_H9_CMPilot2_inducible/pySpade/promoter_region2.txt"
 params.fc_query = '/project/GCRB/Hon_lab/s426305/nextflow_test/promoter_region.txt'
 
@@ -31,15 +32,49 @@ params.fold_change_cutoff = 0.2
 params.expression_cutoff = 0.05
 //expression cutoff = 0.05: genes expressed in more than 5% of cells.
 
-/*
-* Test function
-*/
 //If there are too many perturbation regions (sgrna_dict), the regions can be processed in parallel.
-//params.size = 50 
+params.size = 500 
 
 /*
 * pySpade functions
 */
+
+process prepDEobs{
+	executor "slurm"
+ 	module 'singularity/3.9.9'
+    container './pyspade_v0150.sif'
+
+input: 
+	path sgrna_dict
+	val size
+	path outdir
+
+output:
+	path "$outdir/file_names.txt"
+
+script: 
+	 """
+	mkdir $outdir/DEobs/
+	mkdir $outdir/FDR
+	mkdir $outdir/FDR/DEobs/
+	mkdir  $outdir/chunks
+	LENGTH=\$(wc -l < "$sgrna_dict")
+
+	# Check line count and process accordingly
+	if [ "\$LENGTH" -lt "$size" ]; then
+		# If less than SIZE, write the file path directly
+		cp "$sgrna_dict" $outdir/chunks/
+		ls $outdir/chunks/* > $outdir/file_names.txt
+	else
+		# Otherwise, split the file into chunks and list the chunked files
+		split -l "$size" "$sgrna_dict" $outdir/chunks/part_
+		
+		# Save the list of chunked files
+		ls $outdir/chunks/* > $outdir/file_names.txt
+	fi
+    """
+}
+
 
 process pySpadeprocess {
 	executor "slurm"
@@ -90,7 +125,6 @@ process pySpadefc {
 
 process randomized_sgrnadf {
 	executor "slurm"
-    queue 'super'
 	module 'singularity/3.9.9'
     container './pyspade_v0150.sif'
 
@@ -103,7 +137,6 @@ process randomized_sgrnadf {
 
 	script: 
 		"""
-		mkdir $outdir/FDR
 		$outdir/script/randomized_sgrna.py -s $outdir/Singlet_sgRNA_df.h5 \
 									 -o $outdir/FDR/Randomized_sgrna_df.h5
 		"""
@@ -118,14 +151,13 @@ process pySpadeDEobs {
 	input:
 		val 'process_ready'
 		path outdir
-		path sgrna_dict
+		each sgrna_dict
 	
 	output:
 		val 'DEobs_ready'
 
 	script:
 		"""
-		mkdir $outdir/DEobs/
 		pySpade DEobs\
 				-t $outdir/Singlet_sub_df.h5\
 				-s $outdir/Singlet_sgRNA_df.h5\
@@ -144,14 +176,13 @@ process pySpadeDEobsFDR {
 	input:
 		val 'randomized_sgrna_df_ready'
 		path outdir
-		path sgrna_dict
+		each sgrna_dict
 	
 	output:
 		val 'FDR_DEobs_ready'
 
 	script:
 		"""
-		mkdir $outdir/FDR/DEobs/
 		pySpade DEobs\
 				-t $outdir/Singlet_sub_df.h5\
 				-s $outdir/FDR/Randomized_sgrna_df.h5\
@@ -163,7 +194,6 @@ process pySpadeDEobsFDR {
 
 process findDErandRange {
 	executor "slurm"
-    queue 'super'
 	module 'singularity/3.9.9'
     container './pyspade_v0150.sif'
 
@@ -207,7 +237,7 @@ process pySpadeDErand{
 				-s $outdir/Singlet_sgRNA_df.h5\
 				-d $sgrna_dict\
 				-n 'cpm'\
-				-a 'equal'\
+				-a 'sgrna'\
 				-o $outdir/DErand/\
 				-m $NUM
 		"""
@@ -215,7 +245,6 @@ process pySpadeDErand{
 
 process pySpadelocal{
 	executor "slurm"
-    queue 'super'
 	module 'singularity/3.9.9'
     container './pyspade_v0150.sif'
 
@@ -290,7 +319,6 @@ process pySpadeFDRglobal{
 
 process calculateFDR{
 	executor "slurm"
-    queue 'super'
 	module 'singularity/3.9.9'
     container './pyspade_v0150.sif'
 
@@ -321,7 +349,6 @@ process calculateFDR{
 
 process pySpadeManhattan{
 	executor "slurm"
-    queue 'super'
 	module 'singularity/3.9.9'
     container './pyspade_v0150.sif'
 
@@ -348,7 +375,6 @@ process pySpadeManhattan{
 
 process pySpadeFilterLocal{
 	executor "slurm"
-    queue 'super'
 	module 'singularity/3.9.9'
     container './pyspade_v0150.sif'
 
@@ -403,7 +429,7 @@ fc_query = channel.fromPath(params.fc_query)
 FDR = channel.of(params.FDR)
 fold_change_cutoff = channel.of(params.fold_change_cutoff)
 expression_cutoff = channel.of(params.expression_cutoff)
-
+size = channel.of(params.size)
 
 //Start the process 
 process_ch = pySpadeprocess(transcriptome, sgrna_df, outdir)
@@ -411,8 +437,11 @@ pySpadefc(process_ch, outdir, sgrna_dict, fc_query)
 randomized_ch = randomized_sgrnadf(process_ch, outdir)
 
 //DEobs for real and randomized matrix
-DEobs_ch = pySpadeDEobs(process_ch, outdir, sgrna_dict)
-FDR_DEobs_ch = pySpadeDEobsFDR(randomized_ch, outdir, sgrna_dict)
+dict_file_text = prepDEobs(sgrna_dict, size, outdir)
+dict_input = dict_file_text.splitText().map{it -> it.trim() as String}.collect().view()
+
+DEobs_ch = pySpadeDEobs(process_ch, outdir, dict_input)
+FDR_DEobs_ch = pySpadeDEobsFDR(randomized_ch, outdir, dict_input)
 
 //Find the cell number for DErand
 bin_text = findDErandRange(DEobs_ch, outdir, sgrna_dict)
