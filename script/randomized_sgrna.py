@@ -35,7 +35,8 @@ def main():
     sgrna_df_file = args.sgRNA_df    
     OUTPUT_DF = args.output_df
     
-    sgrna_df = pd.read_hdf(sgrna_df_file, 'df')
+    #import the data in float32 format to reduce memory usage
+    sgrna_df = pd.read_hdf(sgrna_df_file, 'df').astype('int16')
     
     #randomized the columns and indexs
     columns = list(sgrna_df.columns)
