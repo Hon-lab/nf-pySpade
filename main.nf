@@ -57,7 +57,9 @@ params.size = 500
 process prepDEobs{
 	executor "slurm"
  	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir/chunks", mode: 'copy', pattern: 'chunks/*', overwrite: false
 
 input: 
 	path sgrna_dict
@@ -69,10 +71,13 @@ output:
 
 script: 
 	 """
-	mkdir $outdir/DEobs/
-	mkdir $outdir/FDR
-	mkdir $outdir/FDR/DEobs/
-	mkdir  $outdir/chunks
+	# Change to work directory
+	cd ${workflow.workDir}
+	
+	mkdir -p $outdir/DEobs/
+	mkdir -p $outdir/FDR
+	mkdir -p $outdir/FDR/DEobs/
+	mkdir -p $outdir/chunks
 	LENGTH=\$(wc -l < "$sgrna_dict")
 
 	# Check line count and process accordingly
@@ -95,7 +100,9 @@ process pySpadeprocess {
 	executor "slurm"
 	queue '256GB,256GBv1,384GB,512GB'
  	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir", mode: 'copy', pattern: '*.{h5,npy}', overwrite: false
 
 	input:
 		path transcriptome
@@ -107,6 +114,9 @@ process pySpadeprocess {
 
 	script:
 		"""
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		pySpade process -f $transcriptome/\
 						-s $sgrna_df\
 						-o $outdir/
@@ -117,7 +127,9 @@ process pySpadefc {
     executor "slurm"
     queue '256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir/pySpade_fc", mode: 'copy', overwrite: false
 
 	input:
 		val 'process_ready'
@@ -130,7 +142,10 @@ process pySpadefc {
 
 	script: 
 		"""
-		mkdir $outdir/pySpade_fc
+		# Change to work directory
+		cd ${workflow.workDir}
+		
+		mkdir -p $outdir/pySpade_fc
 		pySpade fc -t $outdir/ \
 				-d $sgrna_dict \
 				-r $fc_query \
@@ -141,7 +156,9 @@ process pySpadefc {
 process randomized_sgrnadf {
 	executor "slurm"
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir/FDR", mode: 'copy', pattern: 'Randomized_sgrna_df.h5', overwrite: false
 
 	input:
 		val 'process_ready'
@@ -152,6 +169,9 @@ process randomized_sgrnadf {
 
 	script: 
 		"""
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		$outdir/script/randomized_sgrna.py -s $outdir/Singlet_sgRNA_df.h5 \
 									 -o $outdir/FDR/Randomized_sgrna_df.h5
 		"""
@@ -159,9 +179,12 @@ process randomized_sgrnadf {
 
 process pySpadeDEobs {
 	executor "slurm"
-    queue '256GB,256GBv1,384GB,512GB'
+    queue 'GPU,256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	clusterOptions = '--gres=gpu:1'
+	
+	publishDir "$outdir/DEobs", mode: 'copy', overwrite: false
 
 	input:
 		val 'process_ready'
@@ -173,20 +196,30 @@ process pySpadeDEobs {
 
 	script:
 		"""
+		# Use GPU if available for hypergeometric test acceleration
+		export CUDA_VISIBLE_DEVICES=\${CUDA_VISIBLE_DEVICES:-0}
+		
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		pySpade DEobs\
 				-t $outdir/Singlet_sub_df.h5\
 				-s $outdir/Singlet_sgRNA_df.h5\
 				-d $sgrna_dict\
 				-n 'cpm'\
-				-o $outdir/DEobs/
+				-o $outdir/DEobs/\
+				--use-gpu
 		"""
 }
 
 process pySpadeDEobsFDR {
 	executor "slurm"
-    queue '256GB,256GBv1,384GB,512GB'
+    queue 'GPU,256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	clusterOptions = '--gres=gpu:1'
+	
+	publishDir "$outdir/FDR/DEobs", mode: 'copy', overwrite: false
 
 	input:
 		val 'randomized_sgrna_df_ready'
@@ -198,19 +231,28 @@ process pySpadeDEobsFDR {
 
 	script:
 		"""
+		# Use GPU if available for hypergeometric test acceleration
+		export CUDA_VISIBLE_DEVICES=\${CUDA_VISIBLE_DEVICES:-0}
+		
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		pySpade DEobs\
 				-t $outdir/Singlet_sub_df.h5\
 				-s $outdir/FDR/Randomized_sgrna_df.h5\
 				-d $sgrna_dict\
 				-n 'cpm'\
-				-o $outdir/FDR/DEobs/
+				-o $outdir/FDR/DEobs/\
+				--use-gpu
 		"""
 }
 
 process findDErandRange {
 	executor "slurm"
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir", mode: 'copy', pattern: '{bin.txt,Cell_num_distribution.pdf}', overwrite: false
 
 	input:
 		val 'DEobs_ready'
@@ -222,7 +264,10 @@ process findDErandRange {
 
 	script:
 		"""
-		mkdir $outdir/DErand/
+		# Change to work directory
+		cd ${workflow.workDir}
+		
+		mkdir -p $outdir/DErand/
 		$outdir/script/find_DErand_range.py \
 				-d $outdir/DEobs/ \
 				-s $sgrna_dict \
@@ -232,9 +277,12 @@ process findDErandRange {
 
 process pySpadeDErand{
 	executor "slurm"
-    queue '256GB,256GBv1,384GB,512GB'
+    queue 'GPU,256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	clusterOptions = '--gres=gpu:1'
+	
+	publishDir "$outdir/DErand", mode: 'copy', overwrite: false
 
 	input:
 		each NUM
@@ -246,6 +294,12 @@ process pySpadeDErand{
 
 	script:
 		"""
+		# Use GPU if available for hypergeometric test acceleration
+		export CUDA_VISIBLE_DEVICES=\${CUDA_VISIBLE_DEVICES:-0}
+		
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		echo $NUM
 		pySpade DErand\
 				-t $outdir/Singlet_sub_df.h5\
@@ -254,14 +308,17 @@ process pySpadeDErand{
 				-n 'cpm'\
 				-a 'sgrna'\
 				-o $outdir/DErand/\
-				-m $NUM
+				-m $NUM\
+				--use-gpu
 		"""
 }
 
 process pySpadelocal{
 	executor "slurm"
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir", mode: 'copy', pattern: 'unfiltered_local_df.csv', overwrite: false
 
 	input:
 		val 'DEobs_ready'
@@ -271,6 +328,9 @@ process pySpadelocal{
 
 	script:
 		"""
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		pySpade local\
 				-f $outdir/ \
 				-d $outdir/DEobs/ \
@@ -284,7 +344,9 @@ process pySpadeglobal{
 	executor "slurm"
     queue '256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir", mode: 'copy', pattern: 'unfiltered_global_df.csv', overwrite: false
 
 	input:
 		val 'DEobs_ready'
@@ -297,6 +359,9 @@ process pySpadeglobal{
 
 	script:
 		"""
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		pySpade global\
 				-f $outdir/ \
 				-d $outdir/DEobs/ \
@@ -310,7 +375,9 @@ process pySpadeFDRglobal{
 	executor "slurm"
     queue '256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir/FDR", mode: 'copy', pattern: 'unfiltered_global_df.csv', overwrite: false
 
 	input:
 		val 'FDR_DEobs_ready'
@@ -323,6 +390,9 @@ process pySpadeFDRglobal{
 
 	script:
 		"""
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		pySpade global\
 				-f $outdir/ \
 				-d $outdir/FDR/DEobs/ \
@@ -335,7 +405,9 @@ process pySpadeFDRglobal{
 process calculateFDR{
 	executor "slurm"
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir", mode: 'copy', pattern: '{Significance_score_cutoff_FDR.txt,FDR.pdf}', overwrite: false
 
 	input:
 		val 'global_ready'
@@ -350,7 +422,10 @@ process calculateFDR{
 
 	script:
 		"""
-		mkdir $outdir/Manhattan_plots
+		# Change to work directory
+		cd ${workflow.workDir}
+		
+		mkdir -p $outdir/Manhattan_plots
 		$outdir/script/calculate_FDR.py \
 			-f $outdir/ \
 			-g $outdir/unfiltered_global_df.csv \
@@ -365,7 +440,9 @@ process calculateFDR{
 process pySpadeManhattan{
 	executor "slurm"
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir/Manhattan_plots", mode: 'copy', overwrite: false
 
 	input:
 		path outdir
@@ -377,6 +454,9 @@ process pySpadeManhattan{
 
 	script:
 		"""
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		echo $significance_score
 		pySpade manhattan\
 				-f $outdir/ \
@@ -391,7 +471,9 @@ process pySpadeManhattan{
 process pySpadeFilterLocal{
 	executor "slurm"
 	module 'singularity/3.9.9'
-    container './pyspade_v0150.sif'
+    container 'docker://igvf/pyspade:pyspade_0.1.7'
+	
+	publishDir "$outdir/Manhattan_plots", mode: 'copy', pattern: 'filtered_local_df.csv', overwrite: false
 
 	input:
 		path outdir
@@ -402,7 +484,10 @@ process pySpadeFilterLocal{
 	output:
 
 	script:
-		"""	
+		"""
+		# Change to work directory
+		cd ${workflow.workDir}
+		
 		echo $significance_score
 		$outdir/script/filtered_local_df.py \
 				-f $outdir/ \

@@ -11,4 +11,6 @@
 module load nextflow/24.04.4
 module load singularity/3.9.9
 
-nextflow run -with-singularity pyspade_v0150.sif main.nf
+# Run with -resume flag to enable crash recovery
+# The container will be automatically pulled from Docker Hub if not found locally
+nextflow run main.nf -resume

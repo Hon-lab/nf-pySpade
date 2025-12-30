@@ -1,0 +1,46 @@
+# Nextflow work directory
+work/
+
+# Nextflow files
+.nextflow/
+.nextflow.log*
+.nextflow.pid
+
+# Nextflow reports
+*.html
+*.html.*
+timeline.html
+report.html
+trace.txt
+dag.dot
+dag.svg
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Test and temporary files
+/tmp/
+*.tmp
+
+# Output directories (optional - comment out if you want to track outputs)
+# DEobs/
+# DErand/
+# FDR/
+# chunks/
+# Manhattan_plots/
+
+# Log files
+*.log
+*.out
+*.err
+serialJob.*
+
+# Singularity cache and images
+.singularity/
+singularity/
+*.sif
+*.simg
