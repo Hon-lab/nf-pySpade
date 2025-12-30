@@ -179,7 +179,7 @@ process randomized_sgrnadf {
 
 process pySpadeDEobs {
 	executor "slurm"
-    queue 'GPU,256GB,256GBv1,384GB,512GB'
+    queue 'GPU,GPUp40,GPUp100,256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
     container 'docker://igvf/pyspade:pyspade_0.1.7'
 	clusterOptions = '--gres=gpu:1'
@@ -214,7 +214,7 @@ process pySpadeDEobs {
 
 process pySpadeDEobsFDR {
 	executor "slurm"
-    queue 'GPU,256GB,256GBv1,384GB,512GB'
+    queue 'GPU,GPUp40,GPUp100,256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
     container 'docker://igvf/pyspade:pyspade_0.1.7'
 	clusterOptions = '--gres=gpu:1'
@@ -277,7 +277,7 @@ process findDErandRange {
 
 process pySpadeDErand{
 	executor "slurm"
-    queue 'GPU,256GB,256GBv1,384GB,512GB'
+    queue 'GPU,GPUp40,GPUp100,256GB,256GBv1,384GB,512GB'
 	module 'singularity/3.9.9'
     container 'docker://igvf/pyspade:pyspade_0.1.7'
 	clusterOptions = '--gres=gpu:1'

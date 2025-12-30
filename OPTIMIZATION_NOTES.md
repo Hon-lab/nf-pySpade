@@ -5,7 +5,7 @@
 ### 1. GPU Acceleration for Hypergeometric Tests
 - **DEobs and DErand processes** now request GPU resources from SLURM
 - Added `clusterOptions = '--gres=gpu:1'` to request one GPU per task
-- Added GPU queue to process queue list: `'GPU,256GB,256GBv1,384GB,512GB'`
+- Added GPU queue to process queue list: `'GPU,GPUp40,GPUp100,256GB,256GBv1,384GB,512GB'`
 - Added `--use-gpu` flag to pySpade DEobs and DErand commands
 - Set `CUDA_VISIBLE_DEVICES` environment variable in GPU processes
 

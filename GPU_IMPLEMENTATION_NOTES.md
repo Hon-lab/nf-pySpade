@@ -29,21 +29,21 @@ Contact the pySpade developers to add GPU support for hypergeometric tests in a 
 
 The processes request GPU resources using:
 ```groovy
-queue 'GPU,256GB,256GBv1,384GB,512GB'
+queue 'GPU,GPUp40,GPUp100,256GB,256GBv1,384GB,512GB'
 clusterOptions = '--gres=gpu:1'
 ```
 
 This means:
-- Jobs will preferentially try the GPU queue first
-- If GPU queue is unavailable or full, they'll fall back to memory-based queues
+- Jobs will preferentially try the GPU partitions first (GPU, GPUp40, GPUp100)
+- If GPU partitions are unavailable or full, they'll fall back to memory-based queues
 - Each task requests 1 GPU (`--gres=gpu:1`)
 
-**To verify GPU queue exists:**
+**To verify GPU partitions exist:**
 ```bash
-sinfo -p GPU
+sinfo -p GPU,GPUp40,GPUp100
 ```
 
-If GPU partition doesn't exist, remove the 'GPU' from the queue list.
+If GPU partitions don't exist, remove them from the queue list.
 
 ### 3. Container Compatibility
 
@@ -97,7 +97,7 @@ If processes fail with "cannot find file" errors, the `cd ${workflow.workDir}` l
 Comment out or remove:
 - `clusterOptions = '--gres=gpu:1'`
 - `--use-gpu` flags
-- 'GPU' from queue lists
+- GPU partitions from queue lists
 
 Run a small test to verify the pipeline works with the new container and configuration.
 
@@ -105,6 +105,8 @@ Run a small test to verify the pipeline works with the new container and configu
 On a GPU node, verify CUDA is available:
 ```bash
 srun -p GPU --gres=gpu:1 --pty bash
+# or use GPUp40 or GPUp100 partition
+srun -p GPUp40 --gres=gpu:1 --pty bash
 nvidia-smi
 singularity exec docker://igvf/pyspade:pyspade_0.1.7 python -c "import torch; print(torch.cuda.is_available())"
 ```
