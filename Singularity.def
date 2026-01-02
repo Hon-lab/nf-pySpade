@@ -1,0 +1,40 @@
+Bootstrap: docker
+From: igvf/pyspade:pyspade_0.1.7
+
+%labels
+    Author nf-pySpade
+    Version 0.1.7-nf
+    Description pySpade container with custom Nextflow pipeline scripts
+
+%files
+    script/calculate_FDR.py /opt/nf-pyspade/script/
+    script/filtered_local_df.py /opt/nf-pyspade/script/
+    script/find_DErand_range.py /opt/nf-pyspade/script/
+    script/randomized_sgrna.py /opt/nf-pyspade/script/
+    script/README.md /opt/nf-pyspade/script/
+
+%environment
+    export PATH="/opt/nf-pyspade/script:${PATH}"
+
+%post
+    # Make scripts executable
+    chmod +x /opt/nf-pyspade/script/*.py
+    
+    # Install any additional dependencies if needed
+    # pip install --no-cache-dir <additional-packages>
+
+%runscript
+    exec /bin/bash "$@"
+
+%help
+    This is a Singularity container for the nf-pySpade Nextflow pipeline.
+    It includes pySpade 0.1.7 and custom helper scripts for data processing.
+    
+    Usage:
+        singularity exec nf-pyspade_0.1.7-nf.sif <command>
+        
+    Scripts included:
+        - calculate_FDR.py
+        - filtered_local_df.py
+        - find_DErand_range.py
+        - randomized_sgrna.py

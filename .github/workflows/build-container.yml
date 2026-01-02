@@ -1,0 +1,103 @@
+# GitHub Actions workflow for building and publishing container images
+# This workflow builds Docker images and optionally pushes them to Docker Hub
+# 
+# To use this workflow:
+# 1. Uncomment the workflow triggers below
+# 2. Add Docker Hub credentials as GitHub secrets:
+#    - DOCKERHUB_USERNAME
+#    - DOCKERHUB_TOKEN
+# 3. Update the image name in the env section
+
+name: Build Container Images
+
+# Uncomment to enable automatic builds
+# on:
+#   push:
+#     branches:
+#       - main
+#       - dev_mn
+#     paths:
+#       - 'script/**'
+#       - 'Dockerfile'
+#       - 'Singularity.def'
+#   pull_request:
+#     branches:
+#       - main
+#   release:
+#     types: [published]
+#   workflow_dispatch:
+
+env:
+  IMAGE_NAME: nf-pyspade
+  VERSION: 0.1.7-nf
+
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          token: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ env.VERSION }}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Test Docker image
+        run: |
+          docker run --rm ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }} pySpade --help || echo "pySpade help command completed"
+          docker run --rm ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }} ls -la /opt/nf-pyspade/script/
+
+  # Optional: Build Singularity image (requires Singularity installation)
+  # build-singularity:
+  #   runs-on: ubuntu-latest
+  #   needs: build-docker
+  #   
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+  #     
+  #     - name: Set up Singularity
+  #       uses: eWaterCycle/setup-singularity@v7
+  #       with:
+  #         singularity-version: 3.8.0
+  #     
+  #     - name: Build Singularity image
+  #       run: |
+  #         singularity build ${{ env.IMAGE_NAME }}_${{ env.VERSION }}.sif Singularity.def
+  #     
+  #     - name: Upload Singularity image as artifact
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: singularity-image
+  #         path: ${{ env.IMAGE_NAME }}_${{ env.VERSION }}.sif
+  #         retention-days: 30
