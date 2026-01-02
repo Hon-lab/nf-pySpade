@@ -1,0 +1,45 @@
+# Git files
+.git
+.gitignore
+.branch-info.md
+
+# Nextflow files
+work/
+.nextflow/
+.nextflow.log*
+.nextflow.pid
+
+# Reports and outputs
+*.html
+timeline.html
+report.html
+trace.txt
+dag.dot
+dag.svg
+
+# Build artifacts
+*.sif
+*.simg
+
+# Documentation (include only essential docs in container)
+BRANCH_SETUP.md
+.branch-info.md
+OPTIMIZATION_NOTES.md
+GPU_IMPLEMENTATION_NOTES.md
+
+# Test and temporary files
+*.tmp
+*.log
+*.out
+*.err
+serialJob.*
+
+# Output directories
+DEobs/
+DErand/
+FDR/
+chunks/
+Manhattan_plots/
+
+# Keep only what's needed for the container
+# Include: script/, Dockerfile, Singularity.def

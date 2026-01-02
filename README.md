@@ -44,6 +44,24 @@ This pipeline includes several optimizations for performance and reliability:
 For detailed information, see:
 - [OPTIMIZATION_NOTES.md](OPTIMIZATION_NOTES.md) - Usage and configuration guide
 - [GPU_IMPLEMENTATION_NOTES.md](GPU_IMPLEMENTATION_NOTES.md) - GPU setup and troubleshooting
+- [CONTAINER_BUILD.md](CONTAINER_BUILD.md) - Build custom container images
+
+## Building Custom Container
+
+To build a custom container image with the pipeline scripts included:
+
+```bash
+# Build Docker image
+./build_container.sh docker
+
+# Build Singularity image
+./build_container.sh singularity
+
+# Build both
+./build_container.sh both
+```
+
+See [CONTAINER_BUILD.md](CONTAINER_BUILD.md) for detailed instructions.
 
 ## Output 
 1. Manhattan_plots/filtered_df.csv: the global hits (trans regulated genes) after FDR, fold change and expression level filtering.
