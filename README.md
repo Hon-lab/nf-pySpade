@@ -51,13 +51,22 @@ For detailed information, see:
 To build a custom container image with the pipeline scripts included:
 
 ```bash
-# Build Docker image
+# Build with auto-detection (prefers Podman for rootless)
 ./build_container.sh docker
+
+# Build explicitly with Podman (rootless - no root access needed)
+./build_container.sh podman
 
 # Build Singularity image
 ./build_container.sh singularity
 
 # Build both
+./build_container.sh both
+```
+
+**Rootless builds with Podman**: Ideal for HPC environments where you don't have root access. Podman is fully compatible with Dockerfiles and doesn't require a daemon.
+
+See [CONTAINER_BUILD.md](CONTAINER_BUILD.md) for detailed instructions.
 ./build_container.sh both
 ```
 
